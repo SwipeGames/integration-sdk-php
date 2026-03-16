@@ -6,31 +6,42 @@ namespace SwipeGames\SDK\Tests\Handler;
 
 use PHPUnit\Framework\TestCase;
 use SwipeGames\SDK\Handler\ResponseBuilder;
+use SwipeGames\PublicApi\Integration\BalanceResponse;
+use SwipeGames\PublicApi\Integration\BetResponse;
+use SwipeGames\PublicApi\Integration\WinResponse;
+use SwipeGames\PublicApi\Integration\RefundResponse;
 
 class ResponseBuilderTest extends TestCase
 {
     public function testBalanceResponse(): void
     {
         $result = ResponseBuilder::balanceResponse('100.50');
-        $this->assertSame(['balance' => '100.50'], $result);
+        $this->assertInstanceOf(BalanceResponse::class, $result);
+        $this->assertSame('100.50', $result->getBalance());
     }
 
     public function testBetResponse(): void
     {
         $result = ResponseBuilder::betResponse('90.00', 'tx-123');
-        $this->assertSame(['balance' => '90.00', 'txID' => 'tx-123'], $result);
+        $this->assertInstanceOf(BetResponse::class, $result);
+        $this->assertSame('90.00', $result->getBalance());
+        $this->assertSame('tx-123', $result->getTxId());
     }
 
     public function testWinResponse(): void
     {
         $result = ResponseBuilder::winResponse('150.00', 'tx-456');
-        $this->assertSame(['balance' => '150.00', 'txID' => 'tx-456'], $result);
+        $this->assertInstanceOf(WinResponse::class, $result);
+        $this->assertSame('150.00', $result->getBalance());
+        $this->assertSame('tx-456', $result->getTxId());
     }
 
     public function testRefundResponse(): void
     {
         $result = ResponseBuilder::refundResponse('100.00', 'tx-789');
-        $this->assertSame(['balance' => '100.00', 'txID' => 'tx-789'], $result);
+        $this->assertInstanceOf(RefundResponse::class, $result);
+        $this->assertSame('100.00', $result->getBalance());
+        $this->assertSame('tx-789', $result->getTxId());
     }
 
     public function testErrorResponseMinimal(): void
@@ -70,5 +81,19 @@ class ResponseBuilderTest extends TestCase
         $this->assertArrayNotHasKey('action', $result);
         $this->assertArrayNotHasKey('actionData', $result);
         $this->assertArrayNotHasKey('details', $result);
+    }
+
+    public function testResponsesAreJsonSerializable(): void
+    {
+        $balance = ResponseBuilder::balanceResponse('100.50');
+        $json = json_encode($balance);
+        $decoded = json_decode($json, true);
+        $this->assertSame('100.50', $decoded['balance']);
+
+        $bet = ResponseBuilder::betResponse('90.00', 'tx-123');
+        $json = json_encode($bet);
+        $decoded = json_decode($json, true);
+        $this->assertSame('90.00', $decoded['balance']);
+        $this->assertSame('tx-123', $decoded['txID']);
     }
 }

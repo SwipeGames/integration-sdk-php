@@ -13,6 +13,13 @@ use SwipeGames\SDK\Exception\SwipeGamesApiException;
 use SwipeGames\SDK\Exception\SwipeGamesValidationException;
 use SwipeGames\SDK\Handler\ParsedResult;
 use SwipeGames\SDK\Handler\ResponseBuilder;
+use SwipeGames\PublicApi\ObjectSerializer;
+use SwipeGames\PublicApi\Core\CreateNewGameResponse;
+use SwipeGames\PublicApi\Core\CreateFreeRoundsResponse;
+use SwipeGames\PublicApi\Core\GameInfo;
+use SwipeGames\PublicApi\Integration\BetRequest;
+use SwipeGames\PublicApi\Integration\WinRequest;
+use SwipeGames\PublicApi\Integration\RefundRequest;
 
 class SwipeGamesClient
 {
@@ -68,18 +75,21 @@ class SwipeGamesClient
      *     initDemoBalance?: string,
      *     user?: array{id: string, firstName?: string, lastName?: string, nickName?: string, country?: string},
      * } $params
-     * @return array{gameURL: string, gsID: string}
      */
-    public function createNewGame(array $params): array
+    public function createNewGame(array $params): CreateNewGameResponse
     {
         $body = $this->buildCreateNewGameBody($params);
-        return $this->post('/create-new-game', $body);
+        $result = $this->doRequest('POST', '/create-new-game', $body);
+        return ObjectSerializer::deserialize(
+            json_decode($result['body']),
+            CreateNewGameResponse::class
+        );
     }
 
     /**
      * Get information about all supported games.
      *
-     * @return array<int, array<string, mixed>>
+     * @return GameInfo[]
      */
     public function getGames(): array
     {
@@ -87,7 +97,11 @@ class SwipeGamesClient
             'cID' => $this->cid,
             'extCID' => $this->extCid,
         ];
-        return $this->get('/games', $queryParams);
+        $result = $this->doGet('/games', $queryParams);
+        return ObjectSerializer::deserialize(
+            json_decode($result['body']),
+            GameInfo::class . '[]'
+        );
     }
 
     /**
@@ -103,12 +117,15 @@ class SwipeGamesClient
      *     userIDs?: string[],
      *     validUntil?: string,
      * } $params
-     * @return array{id: string, extID: string}
      */
-    public function createFreeRounds(array $params): array
+    public function createFreeRounds(array $params): CreateFreeRoundsResponse
     {
         $body = $this->buildCreateFreeRoundsBody($params);
-        return $this->post('/free-rounds', $body);
+        $result = $this->doRequest('POST', '/free-rounds', $body);
+        return ObjectSerializer::deserialize(
+            json_decode($result['body']),
+            CreateFreeRoundsResponse::class
+        );
     }
 
     /**
@@ -167,43 +184,43 @@ class SwipeGamesClient
         return Verifier::verifyQueryParams($queryParams, $signature, $this->integrationApiKey);
     }
 
+    /**
+     * @return ParsedResult<BetRequest>
+     */
     public function parseAndVerifyBetRequest(string $rawBody, ?string $signature): ParsedResult
     {
-        return $this->parseAndVerifyInboundRequest($rawBody, $signature, function (array $body): ?string {
-            foreach (['type', 'sessionID', 'amount', 'txID', 'roundID'] as $field) {
-                if (empty($body[$field])) {
-                    return 'Invalid request body';
-                }
-            }
-            if (!in_array($body['type'], ['regular', 'free'], true)) {
+        return $this->parseAndVerifyInboundRequest($rawBody, $signature, BetRequest::class, function (BetRequest $req): ?string {
+            $invalid = $req->listInvalidProperties();
+            if (!empty($invalid)) {
                 return 'Invalid request body';
             }
             return null;
         });
     }
 
+    /**
+     * @return ParsedResult<WinRequest>
+     */
     public function parseAndVerifyWinRequest(string $rawBody, ?string $signature): ParsedResult
     {
-        return $this->parseAndVerifyInboundRequest($rawBody, $signature, function (array $body): ?string {
-            foreach (['type', 'sessionID', 'amount', 'txID', 'roundID'] as $field) {
-                if (empty($body[$field])) {
-                    return 'Invalid request body';
-                }
-            }
-            if (!in_array($body['type'], ['regular', 'free'], true)) {
+        return $this->parseAndVerifyInboundRequest($rawBody, $signature, WinRequest::class, function (WinRequest $req): ?string {
+            $invalid = $req->listInvalidProperties();
+            if (!empty($invalid)) {
                 return 'Invalid request body';
             }
             return null;
         });
     }
 
+    /**
+     * @return ParsedResult<RefundRequest>
+     */
     public function parseAndVerifyRefundRequest(string $rawBody, ?string $signature): ParsedResult
     {
-        return $this->parseAndVerifyInboundRequest($rawBody, $signature, function (array $body): ?string {
-            foreach (['sessionID', 'amount', 'txID', 'origTxID'] as $field) {
-                if (empty($body[$field])) {
-                    return 'Invalid request body';
-                }
+        return $this->parseAndVerifyInboundRequest($rawBody, $signature, RefundRequest::class, function (RefundRequest $req): ?string {
+            $invalid = $req->listInvalidProperties();
+            if (!empty($invalid)) {
+                return 'Invalid request body';
             }
             return null;
         });
@@ -237,45 +254,41 @@ class SwipeGamesClient
     }
 
     /**
-     * @param callable(array<string, mixed>): ?string $validate Validation callback, returns error message or null
+     * @template T
+     * @param class-string<T> $class
+     * @param callable(T): ?string $validate
+     * @return ParsedResult<T>
      */
-    private function parseAndVerifyInboundRequest(string $rawBody, ?string $signature, callable $validate): ParsedResult
+    private function parseAndVerifyInboundRequest(string $rawBody, ?string $signature, string $class, callable $validate): ParsedResult
     {
         try {
             if (!$this->verifyInboundSignature($rawBody, $signature)) {
                 return ParsedResult::failure(ResponseBuilder::errorResponse('Invalid signature'));
             }
 
-            $parsed = json_decode($rawBody, true);
-            if (!is_array($parsed)) {
+            $decoded = json_decode($rawBody);
+            if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
                 return ParsedResult::failure(ResponseBuilder::errorResponse('Invalid request body'));
             }
 
-            $error = $validate($parsed);
+            $instance = ObjectSerializer::deserialize($decoded, $class);
+
+            $error = $validate($instance);
             if ($error !== null) {
                 return ParsedResult::failure(ResponseBuilder::errorResponse($error));
             }
 
-            return ParsedResult::success($parsed);
+            return ParsedResult::success($instance);
         } catch (\Throwable) {
             return ParsedResult::failure(ResponseBuilder::errorResponse('Invalid request body'));
         }
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function post(string $path, array $body): array
-    {
-        $result = $this->doRequest('POST', $path, $body);
-        return json_decode($result['body'], true) ?? [];
-    }
-
-    /**
      * @param array<string, string> $queryParams
-     * @return array<mixed>
+     * @return array{statusCode: int, body: string}
      */
-    private function get(string $path, array $queryParams): array
+    private function doGet(string $path, array $queryParams): array
     {
         $url = $this->baseUrl . $path . '?' . http_build_query($queryParams);
         $signature = Signer::signQueryParams($queryParams, $this->apiKey);
@@ -294,7 +307,7 @@ class SwipeGamesClient
             $this->throwApiError($result, "GET {$url}");
         }
 
-        return json_decode($result['body'], true) ?? [];
+        return $result;
     }
 
     /**

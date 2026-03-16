@@ -4,41 +4,46 @@ declare(strict_types=1);
 
 namespace SwipeGames\SDK\Handler;
 
+use SwipeGames\PublicApi\Integration\BalanceResponse;
+use SwipeGames\PublicApi\Integration\BetResponse;
+use SwipeGames\PublicApi\Integration\WinResponse;
+use SwipeGames\PublicApi\Integration\RefundResponse;
+use SwipeGames\PublicApi\Integration\ErrorResponseWithCodeAndAction;
+
 /**
  * Static helpers for building integration adapter responses.
  */
 final class ResponseBuilder
 {
-    /**
-     * @return array{balance: string}
-     */
-    public static function balanceResponse(string $balance): array
+    public static function balanceResponse(string $balance): BalanceResponse
     {
-        return ['balance' => $balance];
+        $resp = new BalanceResponse();
+        $resp->setBalance($balance);
+        return $resp;
     }
 
-    /**
-     * @return array{balance: string, txID: string}
-     */
-    public static function betResponse(string $balance, string $txID): array
+    public static function betResponse(string $balance, string $txID): BetResponse
     {
-        return ['balance' => $balance, 'txID' => $txID];
+        $resp = new BetResponse();
+        $resp->setBalance($balance);
+        $resp->setTxId($txID);
+        return $resp;
     }
 
-    /**
-     * @return array{balance: string, txID: string}
-     */
-    public static function winResponse(string $balance, string $txID): array
+    public static function winResponse(string $balance, string $txID): WinResponse
     {
-        return ['balance' => $balance, 'txID' => $txID];
+        $resp = new WinResponse();
+        $resp->setBalance($balance);
+        $resp->setTxId($txID);
+        return $resp;
     }
 
-    /**
-     * @return array{balance: string, txID: string}
-     */
-    public static function refundResponse(string $balance, string $txID): array
+    public static function refundResponse(string $balance, string $txID): RefundResponse
     {
-        return ['balance' => $balance, 'txID' => $txID];
+        $resp = new RefundResponse();
+        $resp->setBalance($balance);
+        $resp->setTxId($txID);
+        return $resp;
     }
 
     /**

@@ -9,8 +9,18 @@ PHP SDK for integrating with the Swipe Games platform. Mirrors the Go (`integrat
 - **Crypto** (`src/Crypto/`) — RFC 8785 JCS canonicalization, HMAC-SHA256 signing, timing-safe verification. Must produce identical signatures to Go and Node SDKs.
 - **Client** (`src/Client/`) — `ClientConfig` (readonly value object), `HttpClient` (Guzzle wrapper).
 - **SwipeGamesClient** (`src/SwipeGamesClient.php`) — Main SDK class. Outbound methods (signed with `apiKey`), inbound verification (verified with `integrationApiKey`).
-- **Handler** (`src/Handler/`) — `ResponseBuilder` (static array builders), `ParsedResult` (ok/error wrapper).
+- **Handler** (`src/Handler/`) — `ResponseBuilder` (returns typed response objects), `ParsedResult` (ok/error wrapper).
 - **Exception** (`src/Exception/`) — `SwipeGamesApiException`, `SwipeGamesValidationException`.
+
+### Generated Types
+
+All API types come from `swipegames/public-api` (generated from OpenAPI specs in the `public-api` repo via openapi-generator). The SDK does not define its own type classes — it imports them:
+
+- `SwipeGames\PublicApi\Core\*` — `CreateNewGameResponse`, `CreateFreeRoundsResponse`, `GameInfo`, etc.
+- `SwipeGames\PublicApi\Integration\*` — `BetRequest`, `WinRequest`, `RefundRequest`, `BalanceResponse`, `BetResponse`, etc.
+- `SwipeGames\PublicApi\Common\*` — `ErrorResponse`, `User`
+
+For local development, the types package is referenced via a Composer path repository pointing to `../public-api/packages/php`. When published to Packagist, replace with a version constraint.
 
 ### Dual-key Architecture
 

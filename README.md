@@ -57,6 +57,8 @@ $config = new ClientConfig(
 ### Create New Game
 
 ```php
+use SwipeGames\PublicApi\Core\CreateNewGameResponse;
+
 $result = $client->createNewGame([
     'gameID' => 'sg_catch_97',
     'demo' => false,
@@ -71,23 +73,31 @@ $result = $client->createNewGame([
     ],
 ]);
 
-// $result['gameURL'] — redirect player here
-// $result['gsID'] — game session ID
+// $result is a CreateNewGameResponse object
+$result->getGameUrl();  // redirect player here
+$result->getGsId();     // game session ID
 ```
 
 ### Get Games
 
 ```php
+use SwipeGames\PublicApi\Core\GameInfo;
+
+/** @var GameInfo[] $games */
 $games = $client->getGames();
 
 foreach ($games as $game) {
-    echo $game['id'] . ': ' . $game['title'] . "\n";
+    echo $game->getId() . ': ' . $game->getTitle() . "\n";
+    // $game->getCurrencies(), $game->getLocales(), $game->getPlatforms()
+    // $game->getImages()->getSquare(), $game->getHasFreeSpins(), $game->getRtp()
 }
 ```
 
 ### Create Free Rounds
 
 ```php
+use SwipeGames\PublicApi\Core\CreateFreeRoundsResponse;
+
 $result = $client->createFreeRounds([
     'extID' => 'my-campaign-001',
     'currency' => 'USD',
@@ -99,8 +109,9 @@ $result = $client->createFreeRounds([
     'validUntil' => '2026-02-01T00:00:00.000Z', // optional
 ]);
 
-// $result['id'] — internal campaign ID
-// $result['extID'] — your external ID
+// $result is a CreateFreeRoundsResponse object
+$result->getId();     // internal campaign ID
+$result->getExtId();  // your external ID
 ```
 
 ### Cancel Free Rounds
@@ -119,9 +130,11 @@ Implement these endpoints on your side to handle reverse calls from the platform
 
 ### Parse and Verify Requests
 
-The SDK verifies signatures and validates request bodies in one step:
+The SDK verifies signatures, validates request bodies, and returns typed objects in one step:
 
 ```php
+use SwipeGames\PublicApi\Integration\BetRequest;
+
 // In your /bet endpoint handler
 $rawBody = file_get_contents('php://input');
 $signature = $_SERVER['HTTP_X_REQUEST_SIGN'] ?? null;
@@ -134,24 +147,26 @@ if (!$result->ok) {
     return;
 }
 
+/** @var BetRequest $betRequest */
 $betRequest = $result->body;
-// $betRequest['type']      — 'regular' or 'free'
-// $betRequest['sessionID'] — game session ID
-// $betRequest['amount']    — bet amount
-// $betRequest['txID']      — transaction ID (idempotency key)
-// $betRequest['roundID']   — round ID
+$betRequest->getType();       // 'regular' or 'free'
+$betRequest->getSessionId();  // game session ID
+$betRequest->getAmount();     // bet amount
+$betRequest->getTxId();       // transaction ID (idempotency key)
+$betRequest->getRoundId();    // round ID
+$betRequest->getFrId();       // free rounds ID (only for type='free')
 
 // Process the bet...
 ```
 
 Available parse+verify methods:
 
-| Method                                             | Request Type |
-| -------------------------------------------------- | ------------ |
-| `parseAndVerifyBetRequest($body, $sig)`            | POST /bet    |
-| `parseAndVerifyWinRequest($body, $sig)`            | POST /win    |
-| `parseAndVerifyRefundRequest($body, $sig)`         | POST /refund |
-| `parseAndVerifyBalanceRequest($queryParams, $sig)` | GET /balance |
+| Method                                             | Request Type | Returns                |
+| -------------------------------------------------- | ------------ | ---------------------- |
+| `parseAndVerifyBetRequest($body, $sig)`            | POST /bet    | `ParsedResult<BetRequest>`    |
+| `parseAndVerifyWinRequest($body, $sig)`            | POST /win    | `ParsedResult<WinRequest>`    |
+| `parseAndVerifyRefundRequest($body, $sig)`         | POST /refund | `ParsedResult<RefundRequest>` |
+| `parseAndVerifyBalanceRequest($queryParams, $sig)` | GET /balance | `ParsedResult<array>`         |
 
 ### Verify-Only Methods
 
@@ -166,28 +181,42 @@ $isValid = $client->verifyBalanceRequest($_GET, $signature);
 
 ### Response Builders
 
+Response builders return typed objects that are `JsonSerializable`:
+
 ```php
 use SwipeGames\SDK\Handler\ResponseBuilder;
 
-// Balance response
+// Balance response — returns BalanceResponse object
 echo json_encode(ResponseBuilder::balanceResponse('100.50'));
+// {"balance":"100.50"}
 
-// Bet response
+// Bet response — returns BetResponse object
 echo json_encode(ResponseBuilder::betResponse('90.50', 'your-tx-id'));
+// {"balance":"90.50","txID":"your-tx-id"}
 
-// Win response
+// Win response — returns WinResponse object
 echo json_encode(ResponseBuilder::winResponse('150.50', 'your-tx-id'));
 
-// Refund response
+// Refund response — returns RefundResponse object
 echo json_encode(ResponseBuilder::refundResponse('100.50', 'your-tx-id'));
 
-// Error response
+// Error response — returns array (for flexibility with error codes/actions)
 echo json_encode(ResponseBuilder::errorResponse(
     message: 'Insufficient funds',
     code: 'insufficient_funds',     // optional
     action: 'refresh',              // optional
 ));
 ```
+
+## Types
+
+All API types are generated from OpenAPI specs and provided by the `swipegames/public-api` package:
+
+| Namespace | Types |
+| --------- | ----- |
+| `SwipeGames\PublicApi\Common` | `ErrorResponse`, `User` |
+| `SwipeGames\PublicApi\Core` | `CreateNewGameRequest`, `CreateNewGameResponse`, `CreateFreeRoundsRequest`, `CreateFreeRoundsResponse`, `DeleteFreeRoundsRequest`, `GameInfo`, `GameInfoImages`, `BetLineInfo`, `BetLineValue`, `PlatformType` |
+| `SwipeGames\PublicApi\Integration` | `BetRequest`, `WinRequest`, `RefundRequest`, `BalanceResponse`, `BetResponse`, `WinResponse`, `RefundResponse`, `ErrorResponseWithCodeAndAction` |
 
 ## Error Handling
 

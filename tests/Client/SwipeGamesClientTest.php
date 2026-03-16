@@ -7,9 +7,16 @@ namespace SwipeGames\SDK\Tests\Client;
 use PHPUnit\Framework\TestCase;
 use SwipeGames\SDK\Client\ClientConfig;
 use SwipeGames\SDK\Client\HttpClient;
+use SwipeGames\SDK\Crypto\Signer;
 use SwipeGames\SDK\Exception\SwipeGamesApiException;
 use SwipeGames\SDK\Exception\SwipeGamesValidationException;
 use SwipeGames\SDK\SwipeGamesClient;
+use SwipeGames\PublicApi\Core\CreateNewGameResponse;
+use SwipeGames\PublicApi\Core\CreateFreeRoundsResponse;
+use SwipeGames\PublicApi\Core\GameInfo;
+use SwipeGames\PublicApi\Integration\BetRequest;
+use SwipeGames\PublicApi\Integration\WinRequest;
+use SwipeGames\PublicApi\Integration\RefundRequest;
 
 class SwipeGamesClientTest extends TestCase
 {
@@ -97,8 +104,9 @@ class SwipeGamesClientTest extends TestCase
             'locale' => 'en_us',
         ]);
 
-        $this->assertSame('https://game.example.com', $result['gameURL']);
-        $this->assertSame('abc-123', $result['gsID']);
+        $this->assertInstanceOf(CreateNewGameResponse::class, $result);
+        $this->assertSame('https://game.example.com', $result->getGameUrl());
+        $this->assertSame('abc-123', $result->getGsId());
     }
 
     public function testCreateNewGameApiError(): void
@@ -138,14 +146,16 @@ class SwipeGamesClientTest extends TestCase
             )
             ->willReturn([
                 'statusCode' => 200,
-                'body' => '[{"id":"sg_catch_97","title":"Catch 97"}]',
+                'body' => '[{"id":"sg_catch_97","title":"Catch 97","locales":["en_us"],"currencies":["USD"],"platforms":["desktop"],"images":{"baseURL":"https://cdn.example.com","square":"/sq.png","horizontal":"/h.png","widescreen":"/w.png","vertical":"/v.png"},"hasFreeSpins":true,"rtp":97}]',
             ]);
 
         $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
         $result = $client->getGames();
 
         $this->assertCount(1, $result);
-        $this->assertSame('sg_catch_97', $result[0]['id']);
+        $this->assertInstanceOf(GameInfo::class, $result[0]);
+        $this->assertSame('sg_catch_97', $result[0]->getId());
+        $this->assertSame('Catch 97', $result[0]->getTitle());
     }
 
     // ── createFreeRounds tests ──
@@ -163,8 +173,9 @@ class SwipeGamesClientTest extends TestCase
             'validFrom' => '2026-01-01T00:00:00.000Z',
         ]);
 
-        $this->assertSame('fr-123', $result['id']);
-        $this->assertSame('my-fr', $result['extID']);
+        $this->assertInstanceOf(CreateFreeRoundsResponse::class, $result);
+        $this->assertSame('fr-123', $result->getId());
+        $this->assertSame('my-fr', $result->getExtId());
     }
 
     // ── cancelFreeRounds tests ──
@@ -254,14 +265,16 @@ class SwipeGamesClientTest extends TestCase
         );
         $client = new SwipeGamesClient($config);
 
-        $body = '{"type":"regular","sessionID":"sess-1","amount":"10.00","txID":"tx-1","roundID":"round-1"}';
-        $sig = \SwipeGames\SDK\Crypto\Signer::sign($body, 'secret-key');
+        $body = '{"type":"regular","sessionID":"sess-1","amount":"10.00","txID":"c27ccade-5a45-4157-a85f-7d023a689ea5","roundID":"b78e42f8-2041-482d-9c4b-f2ca79fc75e3"}';
+        $sig = Signer::sign($body, 'secret-key');
 
         $result = $client->parseAndVerifyBetRequest($body, $sig);
 
         $this->assertTrue($result->ok);
-        $this->assertSame('regular', $result->body['type']);
-        $this->assertSame('sess-1', $result->body['sessionID']);
+        $this->assertInstanceOf(BetRequest::class, $result->body);
+        $this->assertSame('regular', $result->body->getType());
+        $this->assertSame('sess-1', $result->body->getSessionId());
+        $this->assertSame('10.00', $result->body->getAmount());
     }
 
     public function testParseAndVerifyBetRequestBadSignature(): void
@@ -287,7 +300,7 @@ class SwipeGamesClientTest extends TestCase
         $client = new SwipeGamesClient($config);
 
         $body = '{"type":"regular"}';
-        $sig = \SwipeGames\SDK\Crypto\Signer::sign($body, 'secret-key');
+        $sig = Signer::sign($body, 'secret-key');
 
         $result = $client->parseAndVerifyBetRequest($body, $sig);
 
@@ -303,12 +316,31 @@ class SwipeGamesClientTest extends TestCase
         );
         $client = new SwipeGamesClient($config);
 
-        $body = '{"type":"invalid","sessionID":"s","amount":"10","txID":"t","roundID":"r"}';
-        $sig = \SwipeGames\SDK\Crypto\Signer::sign($body, 'secret-key');
+        $body = '{"type":"invalid","sessionID":"s","amount":"10.00","txID":"c27ccade-5a45-4157-a85f-7d023a689ea5","roundID":"b78e42f8-2041-482d-9c4b-f2ca79fc75e3"}';
+        $sig = Signer::sign($body, 'secret-key');
 
         $result = $client->parseAndVerifyBetRequest($body, $sig);
 
+        // Generated type throws on invalid enum value during deserialization
         $this->assertFalse($result->ok);
+    }
+
+    public function testParseAndVerifyWinRequestSuccess(): void
+    {
+        $config = new ClientConfig(
+            cid: 'cid', extCid: 'ext', apiKey: 'key',
+            integrationApiKey: 'secret-key',
+        );
+        $client = new SwipeGamesClient($config);
+
+        $body = '{"type":"regular","sessionID":"sess-1","amount":"50.00","txID":"c27ccade-5a45-4157-a85f-7d023a689ea5","roundID":"b78e42f8-2041-482d-9c4b-f2ca79fc75e3"}';
+        $sig = Signer::sign($body, 'secret-key');
+
+        $result = $client->parseAndVerifyWinRequest($body, $sig);
+
+        $this->assertTrue($result->ok);
+        $this->assertInstanceOf(WinRequest::class, $result->body);
+        $this->assertSame('regular', $result->body->getType());
     }
 
     public function testParseAndVerifyRefundRequestSuccess(): void
@@ -319,13 +351,14 @@ class SwipeGamesClientTest extends TestCase
         );
         $client = new SwipeGamesClient($config);
 
-        $body = '{"sessionID":"sess-1","amount":"10.00","txID":"tx-1","origTxID":"orig-1"}';
-        $sig = \SwipeGames\SDK\Crypto\Signer::sign($body, 'secret-key');
+        $body = '{"sessionID":"sess-1","amount":"10.00","txID":"c27ccade-5a45-4157-a85f-7d023a689ea5","origTxID":"b78e42f8-2041-482d-9c4b-f2ca79fc75e3"}';
+        $sig = Signer::sign($body, 'secret-key');
 
         $result = $client->parseAndVerifyRefundRequest($body, $sig);
 
         $this->assertTrue($result->ok);
-        $this->assertSame('sess-1', $result->body['sessionID']);
+        $this->assertInstanceOf(RefundRequest::class, $result->body);
+        $this->assertSame('sess-1', $result->body->getSessionId());
     }
 
     public function testParseAndVerifyBalanceRequestSuccess(): void
@@ -337,7 +370,7 @@ class SwipeGamesClientTest extends TestCase
         $client = new SwipeGamesClient($config);
 
         $params = ['sessionID' => 'sess-1'];
-        $sig = \SwipeGames\SDK\Crypto\Signer::signQueryParams($params, 'secret-key');
+        $sig = Signer::signQueryParams($params, 'secret-key');
 
         $result = $client->parseAndVerifyBalanceRequest($params, $sig);
 
@@ -354,7 +387,7 @@ class SwipeGamesClientTest extends TestCase
         $client = new SwipeGamesClient($config);
 
         $params = [];
-        $sig = \SwipeGames\SDK\Crypto\Signer::signQueryParams($params, 'secret-key');
+        $sig = Signer::signQueryParams($params, 'secret-key');
 
         $result = $client->parseAndVerifyBalanceRequest($params, $sig);
 
