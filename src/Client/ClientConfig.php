@@ -20,6 +20,7 @@ final readonly class ClientConfig
      * @param string|null $baseUrl Custom base URL (overrides env)
      * @param bool $debug Enable debug logging
      * @param LoggerInterface|null $logger PSR-3 logger instance
+     * @param int $timeout HTTP request timeout in seconds
      */
     public function __construct(
         public string $cid,
@@ -30,6 +31,7 @@ final readonly class ClientConfig
         public ?string $baseUrl = null,
         public bool $debug = false,
         public ?LoggerInterface $logger = null,
+        public int $timeout = 10,
     ) {
     }
 }

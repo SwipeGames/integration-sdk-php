@@ -42,6 +42,7 @@ $config = new ClientConfig(
     baseUrl: null,                    // Custom URL (overrides env)
     debug: false,                     // Enable debug logging
     logger: $psrLogger,               // PSR-3 LoggerInterface
+    timeout: 10,                      // HTTP timeout in seconds
 );
 ```
 
@@ -67,6 +68,8 @@ $result = $client->createNewGame([
     'locale' => 'en_us',
     'sessionID' => 'your-session-id',       // optional
     'returnURL' => 'https://your-site.com', // optional
+    'depositURL' => 'https://deposit.url', // optional
+    'initDemoBalance' => '5000',           // optional (demo only)
     'user' => [                             // optional
         'id' => 'player-123',
         'firstName' => 'John',
@@ -128,6 +131,8 @@ $client->cancelFreeRounds(['extID' => 'my-campaign-001']);
 
 Implement these endpoints on your side to handle reverse calls from the platform.
 
+> **Important:** The platform enforces a **5-second timeout** on all integration adapter calls. If your endpoint does not respond in time, the platform will send a refund for bet requests and retry win/refund requests until a 200 response is received.
+
 ### Parse and Verify Requests
 
 The SDK verifies signatures, validates request bodies, and returns typed objects in one step:
@@ -166,7 +171,7 @@ Available parse+verify methods:
 | `parseAndVerifyBetRequest($body, $sig)`            | POST /bet    | `ParsedResult<BetRequest>`    |
 | `parseAndVerifyWinRequest($body, $sig)`            | POST /win    | `ParsedResult<WinRequest>`    |
 | `parseAndVerifyRefundRequest($body, $sig)`         | POST /refund | `ParsedResult<RefundRequest>` |
-| `parseAndVerifyBalanceRequest($queryParams, $sig)` | GET /balance | `ParsedResult<array>`         |
+| `parseAndVerifyBalanceRequest($queryParams, $sig)` | GET /balance | `ParsedResult<array>` (pass `$_GET`) |
 
 ### Verify-Only Methods
 
@@ -200,11 +205,13 @@ echo json_encode(ResponseBuilder::winResponse('150.50', 'your-tx-id'));
 // Refund response — returns RefundResponse object
 echo json_encode(ResponseBuilder::refundResponse('100.50', 'your-tx-id'));
 
-// Error response — returns array (for flexibility with error codes/actions)
+// Error response — returns ErrorResponseWithCodeAndAction object
 echo json_encode(ResponseBuilder::errorResponse(
     message: 'Insufficient funds',
     code: 'insufficient_funds',     // optional
     action: 'refresh',              // optional
+    actionData: 'some-data',        // optional
+    details: 'Balance is 0',        // optional
 ));
 ```
 
@@ -227,8 +234,8 @@ use SwipeGames\SDK\Exception\SwipeGamesValidationException;
 try {
     $result = $client->createNewGame([...]);
 } catch (SwipeGamesApiException $e) {
-    // API returned an error
-    echo $e->statusCode;  // HTTP status
+    // API returned an error or a network error occurred
+    echo $e->statusCode;  // HTTP status (0 for network errors)
     echo $e->errorCode;   // Error code (optional)
     echo $e->details;     // Details (optional)
 } catch (SwipeGamesValidationException $e) {

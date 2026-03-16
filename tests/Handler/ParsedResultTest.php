@@ -6,6 +6,8 @@ namespace SwipeGames\SDK\Tests\Handler;
 
 use PHPUnit\Framework\TestCase;
 use SwipeGames\SDK\Handler\ParsedResult;
+use SwipeGames\SDK\Handler\ResponseBuilder;
+use SwipeGames\PublicApi\Integration\ErrorResponseWithCodeAndAction;
 
 class ParsedResultTest extends TestCase
 {
@@ -19,10 +21,11 @@ class ParsedResultTest extends TestCase
 
     public function testFailureResult(): void
     {
-        $error = ['message' => 'Something failed'];
+        $error = ResponseBuilder::errorResponse('Something failed');
         $result = ParsedResult::failure($error);
         $this->assertFalse($result->ok);
         $this->assertNull($result->body);
-        $this->assertSame($error, $result->error);
+        $this->assertInstanceOf(ErrorResponseWithCodeAndAction::class, $result->error);
+        $this->assertSame('Something failed', $result->error->getMessage());
     }
 }

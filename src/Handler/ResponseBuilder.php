@@ -47,9 +47,7 @@ final class ResponseBuilder
     }
 
     /**
-     * Build an error response, omitting null optional fields.
-     *
-     * @return array<string, string>
+     * Build an error response with optional code and action fields.
      */
     public static function errorResponse(
         string $message,
@@ -57,20 +55,21 @@ final class ResponseBuilder
         ?string $action = null,
         ?string $actionData = null,
         ?string $details = null,
-    ): array {
-        $res = ['message' => $message];
+    ): ErrorResponseWithCodeAndAction {
+        $resp = new ErrorResponseWithCodeAndAction();
+        $resp->setMessage($message);
         if ($code !== null) {
-            $res['code'] = $code;
+            $resp->setCode($code);
         }
         if ($action !== null) {
-            $res['action'] = $action;
+            $resp->setAction($action);
         }
         if ($actionData !== null) {
-            $res['actionData'] = $actionData;
+            $resp->setActionData($actionData);
         }
         if ($details !== null) {
-            $res['details'] = $details;
+            $resp->setDetails($details);
         }
-        return $res;
+        return $resp;
     }
 }

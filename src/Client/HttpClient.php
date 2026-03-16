@@ -14,11 +14,11 @@ class HttpClient
 {
     private Client $client;
 
-    public function __construct(?Client $client = null)
+    public function __construct(?Client $client = null, int $timeout = 10)
     {
         $this->client = $client ?? new Client([
             'http_errors' => false,
-            'timeout' => 10,
+            'timeout' => $timeout,
         ]);
     }
 

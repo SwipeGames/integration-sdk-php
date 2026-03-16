@@ -11,8 +11,10 @@ use SwipeGames\SDK\Crypto\Signer;
 use SwipeGames\SDK\Crypto\Verifier;
 use SwipeGames\SDK\Exception\SwipeGamesApiException;
 use SwipeGames\SDK\Exception\SwipeGamesValidationException;
+use GuzzleHttp\Exception\GuzzleException;
 use SwipeGames\SDK\Handler\ParsedResult;
 use SwipeGames\SDK\Handler\ResponseBuilder;
+use Psr\Log\LoggerInterface;
 use SwipeGames\PublicApi\ObjectSerializer;
 use SwipeGames\PublicApi\Core\CreateNewGameResponse;
 use SwipeGames\PublicApi\Core\CreateFreeRoundsResponse;
@@ -34,7 +36,7 @@ class SwipeGamesClient
     private readonly string $integrationApiKey;
     private readonly string $baseUrl;
     private readonly bool $debug;
-    private readonly ?object $logger;
+    private readonly ?LoggerInterface $logger;
     private readonly HttpClient $httpClient;
 
     public function __construct(ClientConfig $config, ?HttpClient $httpClient = null)
@@ -45,7 +47,7 @@ class SwipeGamesClient
         $this->integrationApiKey = $config->integrationApiKey;
         $this->debug = $config->debug;
         $this->logger = $config->logger;
-        $this->httpClient = $httpClient ?? new HttpClient();
+        $this->httpClient = $httpClient ?? new HttpClient(timeout: $config->timeout);
 
         if ($config->baseUrl !== null) {
             $this->baseUrl = $config->baseUrl;
@@ -295,11 +297,16 @@ class SwipeGamesClient
 
         $this->log("GET {$url}");
 
-        $result = $this->httpClient->request('GET', $url, [
-            'headers' => [
-                'X-REQUEST-SIGN' => $signature,
-            ],
-        ]);
+        try {
+            $result = $this->httpClient->request('GET', $url, [
+                'headers' => [
+                    'X-REQUEST-SIGN' => $signature,
+                ],
+            ]);
+        } catch (GuzzleException $e) {
+            $this->logError("GET {$url} network error: {$e->getMessage()}");
+            throw new SwipeGamesApiException(statusCode: 0, message: $e->getMessage());
+        }
 
         $this->log("GET {$url} -> {$result['statusCode']}");
 
@@ -323,13 +330,18 @@ class SwipeGamesClient
         $this->log("{$method} {$url}");
         $this->log("Body: {$canonical}");
 
-        $result = $this->httpClient->request($method, $url, [
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'X-REQUEST-SIGN' => $signature,
-            ],
-            'body' => $canonical,
-        ]);
+        try {
+            $result = $this->httpClient->request($method, $url, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'X-REQUEST-SIGN' => $signature,
+                ],
+                'body' => $canonical,
+            ]);
+        } catch (GuzzleException $e) {
+            $this->logError("{$method} {$url} network error: {$e->getMessage()}");
+            throw new SwipeGamesApiException(statusCode: 0, message: $e->getMessage());
+        }
 
         $this->log("{$method} {$url} -> {$result['statusCode']}");
 
