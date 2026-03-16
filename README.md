@@ -47,10 +47,10 @@ $config = new ClientConfig(
 
 ### Environments
 
-| Environment | URL |
-|------------|-----|
-| `staging` | `https://staging.platform.0.swipegames.io/api/v1` |
-| `production` | `https://prod.platform.1.swipegames.io/api/v1` |
+| Environment  | URL                                               |
+| ------------ | ------------------------------------------------- |
+| `staging`    | `https://staging.platform.0.swipegames.io/api/v1` |
+| `production` | `https://prod.platform.1.swipegames.io/api/v1`    |
 
 ## Core API
 
@@ -146,11 +146,11 @@ $betRequest = $result->body;
 
 Available parse+verify methods:
 
-| Method | Request Type |
-|--------|-------------|
-| `parseAndVerifyBetRequest($body, $sig)` | POST /bet |
-| `parseAndVerifyWinRequest($body, $sig)` | POST /win |
-| `parseAndVerifyRefundRequest($body, $sig)` | POST /refund |
+| Method                                             | Request Type |
+| -------------------------------------------------- | ------------ |
+| `parseAndVerifyBetRequest($body, $sig)`            | POST /bet    |
+| `parseAndVerifyWinRequest($body, $sig)`            | POST /win    |
+| `parseAndVerifyRefundRequest($body, $sig)`         | POST /refund |
 | `parseAndVerifyBalanceRequest($queryParams, $sig)` | GET /balance |
 
 ### Verify-Only Methods
@@ -210,24 +210,24 @@ try {
 
 ### Error Codes
 
-| Code | Description |
-|------|-------------|
-| `game_not_found` | Game ID not found |
-| `currency_not_supported` | Currency not supported |
-| `locale_not_supported` | Locale not supported |
-| `account_blocked` | Player account blocked |
-| `bet_limit` | Bet limit exceeded |
-| `loss_limit` | Loss limit exceeded |
-| `time_limit` | Time limit exceeded |
-| `insufficient_funds` | Insufficient balance |
-| `session_expired` | Game session expired |
-| `session_not_found` | Game session not found |
-| `client_connection_error` | Connection error |
+| Code                      | Description            |
+| ------------------------- | ---------------------- |
+| `game_not_found`          | Game ID not found      |
+| `currency_not_supported`  | Currency not supported |
+| `locale_not_supported`    | Locale not supported   |
+| `account_blocked`         | Player account blocked |
+| `bet_limit`               | Bet limit exceeded     |
+| `loss_limit`              | Loss limit exceeded    |
+| `time_limit`              | Time limit exceeded    |
+| `insufficient_funds`      | Insufficient balance   |
+| `session_expired`         | Game session expired   |
+| `session_not_found`       | Game session not found |
+| `client_connection_error` | Connection error       |
 
 ### Error Actions
 
-| Action | Description |
-|--------|-------------|
+| Action    | Description                   |
+| --------- | ----------------------------- |
 | `refresh` | Show refresh button to player |
 
 ## Debug Logging
