@@ -9,7 +9,7 @@ use Psr\Log\LoggerInterface;
 /**
  * Configuration for the SwipeGames client.
  */
-final readonly class ClientConfig
+final class ClientConfig
 {
     /**
      * @param string $cid SwipeGames-assigned client ID
@@ -23,15 +23,15 @@ final readonly class ClientConfig
      * @param int $timeout HTTP request timeout in seconds
      */
     public function __construct(
-        public string $cid,
-        public string $extCid,
-        public string $apiKey,
-        public string $integrationApiKey,
-        public string $env = 'staging',
-        public ?string $baseUrl = null,
-        public bool $debug = false,
-        public ?LoggerInterface $logger = null,
-        public int $timeout = 10,
+        public readonly string $cid,
+        public readonly string $extCid,
+        public readonly string $apiKey,
+        public readonly string $integrationApiKey,
+        public readonly string $env = 'staging',
+        public readonly ?string $baseUrl = null,
+        public readonly bool $debug = false,
+        public readonly ?LoggerInterface $logger = null,
+        public readonly int $timeout = 10,
     ) {
     }
 }

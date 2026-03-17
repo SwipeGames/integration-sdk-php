@@ -9,7 +9,7 @@ use SwipeGames\PublicApi\Integration\ErrorResponseWithCodeAndAction;
 /**
  * Result wrapper for parsed and verified inbound requests.
  */
-final readonly class ParsedResult
+final class ParsedResult
 {
     /**
      * @param bool $ok Whether the parse+verify succeeded
@@ -17,9 +17,9 @@ final readonly class ParsedResult
      * @param ErrorResponseWithCodeAndAction|null $error Error response (when ok=false)
      */
     private function __construct(
-        public bool $ok,
-        public mixed $body = null,
-        public ?ErrorResponseWithCodeAndAction $error = null,
+        public readonly bool $ok,
+        public readonly mixed $body = null,
+        public readonly ?ErrorResponseWithCodeAndAction $error = null,
     ) {
     }
 
