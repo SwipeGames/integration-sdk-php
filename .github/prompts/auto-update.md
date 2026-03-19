@@ -14,7 +14,7 @@ These env vars provide context (all optional — detect from local state if miss
 ## Step 1: Gather context
 
 1. **Detect versions** (if not provided via env vars):
-   - Current: `jq -r '.packages[] | select(.name=="swipegames/public-api") | .version' composer.lock | sed 's/^v//'`
+   - Current: `jq -r '.require["swipegames/public-api"]' composer.json | sed 's/^[^0-9]*//'`
    - Target: `curl -sf https://repo.packagist.org/p2/swipegames/public-api.json | jq -r '.packages["swipegames/public-api"][0].version' | sed 's/^v//'`
 
 2. **Read the public-api diff** to understand what changed:
