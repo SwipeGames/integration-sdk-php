@@ -67,7 +67,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.json') }}
           restore-keys: ${{ runner.os }}-composer-
 
       - name: Install dependencies
@@ -76,7 +76,9 @@ jobs:
       - name: Detect versions
         id: versions
         run: |
-          CURRENT=$(jq -r '.packages[] | select(.name=="swipegames/public-api") | .version' composer.lock | sed 's/^v//')
+          # composer.lock is gitignored, so read the constraint from composer.json
+          # e.g. "^1.2.14" → "1.2.14"
+          CURRENT=$(jq -r '.require["swipegames/public-api"]' composer.json | sed 's/^[^0-9]*//')
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
 
           if [ -n "${{ inputs.public_api_version }}" ]; then
