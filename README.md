@@ -221,8 +221,7 @@ All API types are generated from OpenAPI specs and provided by the `swipegames/p
 
 | Namespace | Types |
 | --------- | ----- |
-| `SwipeGames\PublicApi\Common` | `ErrorResponse`, `User` |
-| `SwipeGames\PublicApi\Core` | `CreateNewGameRequest`, `CreateNewGameResponse`, `CreateFreeRoundsRequest`, `CreateFreeRoundsResponse`, `DeleteFreeRoundsRequest`, `GameInfo`, `GameInfoImages`, `BetLineInfo`, `BetLineValue`, `PlatformType` |
+| `SwipeGames\PublicApi\Core` | `CreateNewGameRequest`, `CreateNewGameResponse`, `CreateFreeRoundsRequest`, `CreateFreeRoundsResponse`, `DeleteFreeRoundsRequest`, `GameInfo`, `GameInfoImages`, `BetLineInfo`, `BetLineValue`, `PlatformType`, `ErrorResponse`, `User` |
 | `SwipeGames\PublicApi\Integration` | `BetRequest`, `WinRequest`, `RefundRequest`, `BalanceResponse`, `BetResponse`, `WinResponse`, `RefundResponse`, `ErrorResponseWithCodeAndAction` |
 
 ## Error Handling

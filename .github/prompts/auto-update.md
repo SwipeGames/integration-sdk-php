@@ -28,7 +28,7 @@ These env vars provide context (all optional — detect from local state if miss
 3. **Read the public-api source** for full context:
    - In the public-api repo: `packages/php/src/`, `api/`, `docs/` directories
    - Pay special attention to `docs/changes-log.md` for a human-readable changelog
-   - Look at the PHP types under `SwipeGames\PublicApi\Core\*`, `SwipeGames\PublicApi\Integration\*`, `SwipeGames\PublicApi\Common\*`
+   - Enumerate the actual PHP namespaces present in the installed package (`vendor/swipegames/public-api/packages/php/src/*/`) — do NOT assume a fixed set. Namespaces have changed between versions (e.g. `Common\*` was removed in v1.4.0 and its types moved to `Core\*`). Note any added, removed, or renamed namespaces/types.
 
 4. **Categorize the changes:**
    - New Core API endpoints (→ new methods on `SwipeGamesClient`)
@@ -36,6 +36,7 @@ These env vars provide context (all optional — detect from local state if miss
    - Changed request/response schemas (→ update method signatures if needed)
    - New shared types or enums (→ types come from `swipegames/public-api`, no local changes needed)
    - New error codes or actions (→ update exception handling if needed)
+   - Namespace moves/renames or added/removed types (→ update `use` statements in `src/` and `tests/`, and the namespace table in `README.md`)
    - Breaking changes (→ document in PR body)
 
 ## Step 2: Read the current SDK
@@ -88,6 +89,11 @@ Apply changes following existing patterns exactly. For each change type:
 1. Error types come from `swipegames/public-api` — typically no local changes needed
 2. Update response builders or exception handling if they need to handle new codes
 
+### Namespace moves/renames or added/removed types
+
+1. Grep `src/` and `tests/` for `use SwipeGames\PublicApi\...` and update any imports whose namespace moved (e.g., a type that relocated from `Common\` to `Core\`). Remove imports for types that were removed upstream.
+2. Update the namespace/types table in `README.md` so it reflects the namespaces and types actually present in `vendor/swipegames/public-api/packages/php/src/` for the target version. Add new public types, remove deleted ones, and delete rows for namespaces that no longer exist.
+
 ## Step 4: Update tests
 
 Follow existing test patterns exactly:
@@ -99,11 +105,18 @@ Follow existing test patterns exactly:
 5. For new verify/parse methods: test valid signatures, invalid signatures, malformed bodies
 6. For new response builders: test output shape and type correctness
 
-## Step 5: Verify
+## Step 5: Update user-facing docs
+
+1. `README.md` — verify every code example, type reference, and the namespace/types table still matches the installed `vendor/swipegames/public-api/packages/php/src/` layout. Fix any stale namespace (e.g. `Common\ErrorResponse` → `Core\ErrorResponse`), renamed type, or removed field.
+2. If the SDK's public API changed (new methods, changed signatures, new builders), add or update the corresponding section in the README.
+3. Grep the repo for any other references to old namespaces/types and update them (`grep -rn "SwipeGames\\\\PublicApi\\\\" README.md docs/ 2>/dev/null`).
+
+## Step 6: Verify
 
 1. Run `vendor/bin/phpunit` — all tests must pass
 2. If tests fail, read the error output carefully, fix the issues, and re-run
 3. Repeat until all tests pass cleanly
+4. Final sanity check: `grep -rn "SwipeGames\\\\PublicApi\\\\" src/ tests/ README.md` should not reference any namespace that no longer exists in `vendor/swipegames/public-api/packages/php/src/`.
 
 ## Constraints
 
@@ -113,7 +126,7 @@ Follow existing test patterns exactly:
 - **Follow existing code style exactly**: same naming conventions, same patterns, same file organization
 - **Do NOT modify `src/Crypto/`** unless the signing/verification mechanism itself changed
 - **Maintain dual-key architecture**: `apiKey` for outbound requests, `integrationApiKey` for inbound verification
-- **Types from `SwipeGames\PublicApi\*`**: Use `Core\*`, `Integration\*`, `Common\*` namespaces as appropriate
+- **Types from `SwipeGames\PublicApi\*`**: use whichever namespaces exist in the installed package for the target version (typically `Core\*` and `Integration\*`; older versions also had `Common\*`). Do not import a namespace that does not exist in `vendor/swipegames/public-api/packages/php/src/`.
 - **`ObjectSerializer::deserialize`** for all deserialization
 - **`listInvalidProperties()`** for validation of parsed request bodies
 - **Setter-style response builders** in `ResponseBuilder.php`
