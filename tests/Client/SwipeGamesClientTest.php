@@ -210,6 +210,58 @@ class SwipeGamesClientTest extends TestCase
         $this->assertSame('Catch 97', $result[0]->getTitle());
     }
 
+    public function testGetGamesWithExcludeBetLines(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'GET',
+                $this->callback(function (string $url) {
+                    $this->assertStringContainsString('/games', $url);
+                    $this->assertStringContainsString('excludeBetLines=true', $url);
+                    return true;
+                }),
+                $this->callback(function (array $options) {
+                    $this->assertArrayHasKey('X-REQUEST-SIGN', $options['headers']);
+                    return true;
+                })
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '[{"id":"sg_catch_97","title":"Catch 97","locales":["en_us"],"currencies":["USD"],"platforms":["desktop"],"images":{"baseURL":"https://cdn.example.com","square":"/sq.png","horizontal":"/h.png","widescreen":"/w.png","vertical":"/v.png"},"hasFreeSpins":true,"rtp":97}]',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $result = $client->getGames(excludeBetLines: true);
+
+        $this->assertCount(1, $result);
+        $this->assertInstanceOf(GameInfo::class, $result[0]);
+    }
+
+    public function testGetGamesWithoutExcludeBetLines(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'GET',
+                $this->callback(function (string $url) {
+                    $this->assertStringContainsString('/games', $url);
+                    $this->assertStringNotContainsString('excludeBetLines', $url);
+                    return true;
+                }),
+                $this->anything()
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '[]',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $client->getGames();
+    }
+
     public function testGetGamesApiError(): void
     {
         $httpClient = $this->makeMockHttpClient(401, '{"message":"Wrong signature"}');
@@ -544,6 +596,20 @@ class SwipeGamesClientTest extends TestCase
         $this->assertTrue($result->ok);
         $this->assertInstanceOf(RefundRequest::class, $result->body);
         $this->assertSame('sess-1', $result->body->getSessionId());
+    }
+
+    public function testParseAndVerifyRefundRequestWithRoundId(): void
+    {
+        $client = new SwipeGamesClient($this->makeIntegrationConfig());
+
+        $body = '{"sessionID":"sess-1","amount":"10.00","txID":"c27ccade-5a45-4157-a85f-7d023a689ea5","origTxID":"b78e42f8-2041-482d-9c4b-f2ca79fc75e3","roundID":"a1234567-1234-1234-1234-123456789abc"}';
+        $sig = Signer::sign($body, 'secret-key');
+
+        $result = $client->parseAndVerifyRefundRequest($body, $sig);
+
+        $this->assertTrue($result->ok);
+        $this->assertInstanceOf(RefundRequest::class, $result->body);
+        $this->assertSame('a1234567-1234-1234-1234-123456789abc', $result->body->getRoundId());
     }
 
     public function testParseAndVerifyRefundRequestBadSignature(): void

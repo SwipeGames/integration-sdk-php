@@ -91,14 +91,18 @@ class SwipeGamesClient
     /**
      * Get information about all supported games.
      *
+     * @param bool|null $excludeBetLines When true, omit betLines from response to reduce payload size
      * @return GameInfo[]
      */
-    public function getGames(): array
+    public function getGames(?bool $excludeBetLines = null): array
     {
         $queryParams = [
             'cID' => $this->cid,
             'extCID' => $this->extCid,
         ];
+        if ($excludeBetLines === true) {
+            $queryParams['excludeBetLines'] = 'true';
+        }
         $result = $this->doGet('/games', $queryParams);
         return ObjectSerializer::deserialize(
             json_decode($result['body']),

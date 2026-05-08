@@ -89,6 +89,9 @@ use SwipeGames\PublicApi\Core\GameInfo;
 /** @var GameInfo[] $games */
 $games = $client->getGames();
 
+// Exclude bet lines data to reduce payload size (recommended unless you need free rounds bet lines)
+$games = $client->getGames(excludeBetLines: true);
+
 foreach ($games as $game) {
     echo $game->getId() . ': ' . $game->getTitle() . "\n";
     // $game->getCurrencies(), $game->getLocales(), $game->getPlatforms()
