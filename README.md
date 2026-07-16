@@ -92,6 +92,15 @@ $games = $client->getGames();
 // Exclude bet lines data to reduce payload size (recommended unless you need free rounds bet lines)
 $games = $client->getGames(excludeBetLines: true);
 
+// Filter currencies returned per game
+$games = $client->getGames(currencyFilters: ['main_fiat', 'main_crypto']);
+
+// Filter currencies and include additional specific codes
+$games = $client->getGames(
+    currencyFilters: ['main'],
+    additionalCurrencies: ['mETH', 'uBTC'],
+);
+
 foreach ($games as $game) {
     echo $game->getId() . ': ' . $game->getTitle() . "\n";
     // $game->getCurrencies(), $game->getLocales(), $game->getPlatforms()
@@ -224,7 +233,7 @@ All API types are generated from OpenAPI specs and provided by the `swipegames/p
 
 | Namespace | Types |
 | --------- | ----- |
-| `SwipeGames\PublicApi\Core` | `CreateNewGameRequest`, `CreateNewGameResponse`, `CreateFreeRoundsRequest`, `CreateFreeRoundsResponse`, `DeleteFreeRoundsRequest`, `GameInfo`, `GameInfoImages`, `BetLineInfo`, `BetLineValue`, `PlatformType`, `ErrorResponse`, `User` |
+| `SwipeGames\PublicApi\Core` | `CreateNewGameRequest`, `CreateNewGameResponse`, `CreateFreeRoundsRequest`, `CreateFreeRoundsResponse`, `CurrencyFilter`, `DeleteFreeRoundsRequest`, `GameInfo`, `GameInfoImages`, `BetLineInfo`, `BetLineValue`, `PlatformType`, `ErrorResponse`, `User` |
 | `SwipeGames\PublicApi\Integration` | `BetRequest`, `WinRequest`, `RefundRequest`, `BalanceResponse`, `BetResponse`, `WinResponse`, `RefundResponse`, `ErrorResponseWithCodeAndAction` |
 
 ## Error Handling
