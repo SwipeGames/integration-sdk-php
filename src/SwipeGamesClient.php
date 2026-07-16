@@ -92,16 +92,27 @@ class SwipeGamesClient
      * Get information about all supported games.
      *
      * @param bool|null $excludeBetLines When true, omit betLines from response to reduce payload size
+     * @param string[]|null $currencyFilters Filter currencies returned per game (e.g. ['main', 'main_fiat'])
+     * @param string[]|null $additionalCurrencies Extra currency codes to include alongside currencyFilters
      * @return GameInfo[]
      */
-    public function getGames(?bool $excludeBetLines = null): array
-    {
+    public function getGames(
+        ?bool $excludeBetLines = null,
+        ?array $currencyFilters = null,
+        ?array $additionalCurrencies = null,
+    ): array {
         $queryParams = [
             'cID' => $this->cid,
             'extCID' => $this->extCid,
         ];
         if ($excludeBetLines === true) {
             $queryParams['excludeBetLines'] = 'true';
+        }
+        if ($currencyFilters !== null && $currencyFilters !== []) {
+            $queryParams['currencyFilters'] = implode(',', $currencyFilters);
+        }
+        if ($additionalCurrencies !== null && $additionalCurrencies !== []) {
+            $queryParams['additionalCurrencies'] = implode(',', $additionalCurrencies);
         }
         $result = $this->doGet('/games', $queryParams);
         return ObjectSerializer::deserialize(

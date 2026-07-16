@@ -262,6 +262,82 @@ class SwipeGamesClientTest extends TestCase
         $client->getGames();
     }
 
+    public function testGetGamesWithCurrencyFilters(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'GET',
+                $this->callback(function (string $url) {
+                    $this->assertStringContainsString('/games', $url);
+                    $this->assertStringContainsString('currencyFilters=main_fiat%2Cmain_crypto', $url);
+                    return true;
+                }),
+                $this->callback(function (array $options) {
+                    $this->assertArrayHasKey('X-REQUEST-SIGN', $options['headers']);
+                    return true;
+                })
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '[]',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $client->getGames(currencyFilters: ['main_fiat', 'main_crypto']);
+    }
+
+    public function testGetGamesWithAdditionalCurrencies(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'GET',
+                $this->callback(function (string $url) {
+                    $this->assertStringContainsString('/games', $url);
+                    $this->assertStringContainsString('currencyFilters=main', $url);
+                    $this->assertStringContainsString('additionalCurrencies=mETH%2CuBTC', $url);
+                    return true;
+                }),
+                $this->callback(function (array $options) {
+                    $this->assertArrayHasKey('X-REQUEST-SIGN', $options['headers']);
+                    return true;
+                })
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '[]',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $client->getGames(currencyFilters: ['main'], additionalCurrencies: ['mETH', 'uBTC']);
+    }
+
+    public function testGetGamesWithEmptyCurrencyFilters(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'GET',
+                $this->callback(function (string $url) {
+                    $this->assertStringNotContainsString('currencyFilters', $url);
+                    $this->assertStringNotContainsString('additionalCurrencies', $url);
+                    return true;
+                }),
+                $this->anything()
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '[]',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $client->getGames(currencyFilters: [], additionalCurrencies: []);
+    }
+
     public function testGetGamesApiError(): void
     {
         $httpClient = $this->makeMockHttpClient(401, '{"message":"Wrong signature"}');
