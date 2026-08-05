@@ -18,6 +18,7 @@ use Psr\Log\LoggerInterface;
 use SwipeGames\PublicApi\ObjectSerializer;
 use SwipeGames\PublicApi\Core\CreateNewGameResponse;
 use SwipeGames\PublicApi\Core\CreateFreeRoundsResponse;
+use SwipeGames\PublicApi\Core\FreeRoundsInfoResponse;
 use SwipeGames\PublicApi\Core\GameInfo;
 use SwipeGames\PublicApi\Integration\BetRequest;
 use SwipeGames\PublicApi\Integration\WinRequest;
@@ -71,6 +72,7 @@ class SwipeGamesClient
      *     platform: string,
      *     currency: string,
      *     locale: string,
+     *     fallbackToDefaultLocale?: bool,
      *     sessionID?: string,
      *     returnURL?: string,
      *     depositURL?: string,
@@ -171,6 +173,38 @@ class SwipeGamesClient
         }
 
         $this->doRequest('DELETE', '/free-rounds', $body);
+    }
+
+    /**
+     * Get free rounds campaign info by internal id or external id.
+     *
+     * @param array{id?: string, extID?: string} $params At least one of id or extID must be provided
+     */
+    public function getFreeRounds(array $params): FreeRoundsInfoResponse
+    {
+        $id = $params['id'] ?? '';
+        $extID = $params['extID'] ?? '';
+
+        if ($id === '' && $extID === '') {
+            throw new SwipeGamesValidationException('One of id or extID must be provided');
+        }
+
+        $queryParams = [
+            'cID' => $this->cid,
+            'extCID' => $this->extCid,
+        ];
+        if ($id !== '') {
+            $queryParams['id'] = $id;
+        }
+        if ($extID !== '') {
+            $queryParams['extID'] = $extID;
+        }
+
+        $result = $this->doGet('/free-rounds', $queryParams);
+        return ObjectSerializer::deserialize(
+            json_decode($result['body']),
+            FreeRoundsInfoResponse::class
+        );
     }
 
     // ── Inbound: Platform → SDK (verified with integrationApiKey) ──
@@ -401,6 +435,10 @@ class SwipeGamesClient
             'currency' => $params['currency'],
             'locale' => $params['locale'],
         ];
+
+        if (isset($params['fallbackToDefaultLocale']) && $params['fallbackToDefaultLocale'] === true) {
+            $body['fallbackToDefaultLocale'] = true;
+        }
 
         foreach (['sessionID', 'returnURL', 'depositURL', 'initDemoBalance'] as $optional) {
             if (isset($params[$optional]) && $params[$optional] !== '') {
