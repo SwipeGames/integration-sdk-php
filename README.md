@@ -66,6 +66,7 @@ $result = $client->createNewGame([
     'platform' => 'desktop',   // 'desktop' or 'mobile'
     'currency' => 'USD',
     'locale' => 'en_us',
+    'fallbackToDefaultLocale' => true,     // optional — use default locale if unsupported
     'sessionID' => 'your-session-id',       // optional
     'returnURL' => 'https://your-site.com', // optional
     'depositURL' => 'https://deposit.url', // optional
@@ -137,6 +138,29 @@ $client->cancelFreeRounds(['id' => 'campaign-uuid']);
 
 // By external ID
 $client->cancelFreeRounds(['extID' => 'my-campaign-001']);
+```
+
+### Get Free Rounds Info
+
+```php
+use SwipeGames\PublicApi\Core\FreeRoundsInfoResponse;
+
+// By internal ID
+$info = $client->getFreeRounds(['id' => 'campaign-uuid']);
+
+// By external ID
+$info = $client->getFreeRounds(['extID' => 'my-campaign-001']);
+
+// $info is a FreeRoundsInfoResponse object
+$info->getId();        // internal campaign ID
+$info->getExtId();     // your external ID
+$info->getQuantity();  // total rounds granted
+$info->getMaxBet();    // max bet per attempt
+$info->getMaxMult();   // max target multiplier
+$info->getCurrency();  // currency code
+$info->getValidFrom(); // start date
+$info->getValidUntil(); // end date (null if never ends)
+$info->getDeletedAt();  // cancellation date (null if active)
 ```
 
 ## Integration Adapter
@@ -233,7 +257,7 @@ All API types are generated from OpenAPI specs and provided by the `swipegames/p
 
 | Namespace | Types |
 | --------- | ----- |
-| `SwipeGames\PublicApi\Core` | `CreateNewGameRequest`, `CreateNewGameResponse`, `CreateFreeRoundsRequest`, `CreateFreeRoundsResponse`, `CurrencyFilter`, `DeleteFreeRoundsRequest`, `GameInfo`, `GameInfoImages`, `BetLineInfo`, `BetLineValue`, `PlatformType`, `ErrorResponse`, `User` |
+| `SwipeGames\PublicApi\Core` | `CreateNewGameRequest`, `CreateNewGameResponse`, `CreateNewGamePost400Response`, `CreateNewGamePost401Response`, `CreateNewGamePost403Response`, `CreateFreeRoundsRequest`, `CreateFreeRoundsResponse`, `FreeRoundsInfoResponse`, `CurrencyFilter`, `DeleteFreeRoundsRequest`, `GameInfo`, `GameInfoImages`, `BetLineInfo`, `BetLineValue`, `PlatformType`, `ErrorResponse`, `User` |
 | `SwipeGames\PublicApi\Integration` | `BetRequest`, `WinRequest`, `RefundRequest`, `BalanceResponse`, `BetResponse`, `WinResponse`, `RefundResponse`, `ErrorResponseWithCodeAndAction` |
 
 ## Error Handling

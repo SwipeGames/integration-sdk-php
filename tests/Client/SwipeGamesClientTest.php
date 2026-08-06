@@ -13,6 +13,7 @@ use SwipeGames\SDK\Exception\SwipeGamesValidationException;
 use SwipeGames\SDK\SwipeGamesClient;
 use SwipeGames\PublicApi\Core\CreateNewGameResponse;
 use SwipeGames\PublicApi\Core\CreateFreeRoundsResponse;
+use SwipeGames\PublicApi\Core\FreeRoundsInfoResponse;
 use SwipeGames\PublicApi\Core\GameInfo;
 use SwipeGames\PublicApi\Integration\BetRequest;
 use SwipeGames\PublicApi\Integration\WinRequest;
@@ -468,6 +469,151 @@ class SwipeGamesClientTest extends TestCase
 
         $this->expectException(SwipeGamesApiException::class);
         $client->cancelFreeRounds(['id' => 'nonexistent']);
+    }
+
+    // ── getFreeRounds tests ──
+
+    public function testGetFreeRoundsById(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'GET',
+                $this->callback(function (string $url) {
+                    $this->assertStringContainsString('/free-rounds', $url);
+                    $this->assertStringContainsString('cID=test-cid', $url);
+                    $this->assertStringContainsString('extCID=test-ext-cid', $url);
+                    $this->assertStringContainsString('id=fr-123', $url);
+                    $this->assertStringNotContainsString('extID', $url);
+                    return true;
+                }),
+                $this->callback(function (array $options) {
+                    $this->assertArrayHasKey('X-REQUEST-SIGN', $options['headers']);
+                    return true;
+                })
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '{"id":"fr-123","extID":"my-fr","quantity":10,"maxBet":"0.10","maxMult":5.0,"currency":"USD","validFrom":"2026-01-01T00:00:00.000Z"}',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $result = $client->getFreeRounds(['id' => 'fr-123']);
+
+        $this->assertInstanceOf(FreeRoundsInfoResponse::class, $result);
+        $this->assertSame('fr-123', $result->getId());
+        $this->assertSame('my-fr', $result->getExtId());
+        $this->assertSame(10, $result->getQuantity());
+        $this->assertSame('0.10', $result->getMaxBet());
+        $this->assertSame('USD', $result->getCurrency());
+    }
+
+    public function testGetFreeRoundsByExtId(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'GET',
+                $this->callback(function (string $url) {
+                    $this->assertStringContainsString('/free-rounds', $url);
+                    $this->assertStringContainsString('extID=my-campaign', $url);
+                    $this->assertStringNotContainsString('id=', $url);
+                    return true;
+                }),
+                $this->anything()
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '{"id":"fr-456","extID":"my-campaign","quantity":5,"maxBet":"1.00","maxMult":10.0,"currency":"EUR","validFrom":"2026-02-01T00:00:00.000Z","validUntil":"2026-03-01T00:00:00.000Z"}',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $result = $client->getFreeRounds(['extID' => 'my-campaign']);
+
+        $this->assertInstanceOf(FreeRoundsInfoResponse::class, $result);
+        $this->assertSame('fr-456', $result->getId());
+        $this->assertSame('my-campaign', $result->getExtId());
+    }
+
+    public function testGetFreeRoundsValidation(): void
+    {
+        $httpClient = $this->makeMockHttpClient(200, '');
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+
+        $this->expectException(SwipeGamesValidationException::class);
+        $client->getFreeRounds([]);
+    }
+
+    public function testGetFreeRoundsApiError(): void
+    {
+        $httpClient = $this->makeMockHttpClient(404, '{"message":"Campaign not found"}');
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+
+        $this->expectException(SwipeGamesApiException::class);
+        $client->getFreeRounds(['id' => 'nonexistent']);
+    }
+
+    // ── createNewGame fallbackToDefaultLocale tests ──
+
+    public function testCreateNewGameWithFallbackToDefaultLocale(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'POST',
+                $this->stringContains('/create-new-game'),
+                $this->callback(function (array $options) {
+                    $body = json_decode($options['body'], true);
+                    $this->assertTrue($body['fallbackToDefaultLocale']);
+                    return true;
+                })
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '{"gameURL":"https://game.example.com","gsID":"abc-123"}',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $client->createNewGame([
+            'gameID' => 'sg_catch_97',
+            'demo' => false,
+            'platform' => 'desktop',
+            'currency' => 'USD',
+            'locale' => 'xx_xx',
+            'fallbackToDefaultLocale' => true,
+        ]);
+    }
+
+    public function testCreateNewGameWithoutFallbackToDefaultLocale(): void
+    {
+        $httpClient = $this->createMock(HttpClient::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'POST',
+                $this->stringContains('/create-new-game'),
+                $this->callback(function (array $options) {
+                    $body = json_decode($options['body'], true);
+                    $this->assertArrayNotHasKey('fallbackToDefaultLocale', $body);
+                    return true;
+                })
+            )
+            ->willReturn([
+                'statusCode' => 200,
+                'body' => '{"gameURL":"https://game.example.com","gsID":"abc-123"}',
+            ]);
+
+        $client = new SwipeGamesClient($this->makeConfig(), $httpClient);
+        $client->createNewGame([
+            'gameID' => 'sg_catch_97',
+            'demo' => false,
+            'platform' => 'desktop',
+            'currency' => 'USD',
+            'locale' => 'en_us',
+        ]);
     }
 
     // ── Network error wrapping ──
